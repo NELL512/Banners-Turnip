@@ -50,6 +50,30 @@ compile_mesa() {
     local cver="35"
     [ ! -f "$ndk_bin/aarch64-linux-android${cver}-clang" ] && cver="34"
 
+compile_mesa() {
+    local repo_url="https://gitlab.freedesktop.org/mesa/mesa.git"
+    local branch="main"
+    local build_name="Turnip-Main-PocoF1-Android10"
+    local output_tag="V97-Main-Android10"
+
+    echo "Cloning Mesa Main..."
+
+    cd "$workdir"
+    rm -rf mesa
+
+    git clone --depth 100 -b "$branch" "$repo_url" mesa
+    cd mesa
+
+    # Biasanya tidak perlu clone manual; biarkan Meson wrap yang menarik subproject.
+    # Hapus baris clone SPIRV jika build gagal karena versi wrap tidak cocok.
+
+    local build_dir="$workdir/mesa/build"
+    rm -rf "$build_dir"
+
+    local ndk_bin="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+    local ndk_sys="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+    local cver="29"
+
     cat <<EOF > android-cross.txt
 [binaries]
 ar = '$ndk_bin/llvm-ar'
@@ -58,24 +82,27 @@ cpp = ['ccache', '$ndk_bin/aarch64-linux-android${cver}-clang++', '--sysroot=$nd
 c_ld = 'lld'
 cpp_ld = 'lld'
 strip = '$ndk_bin/aarch64-linux-android-strip'
+
 [host_machine]
 system = 'android'
 cpu_family = 'aarch64'
 cpu = 'armv8'
 endian = 'little'
+
 [built-in options]
 c_link_args = ['-static-libstdc++']
 cpp_link_args = ['-static-libstdc++']
 EOF
-    
+
     export CFLAGS="-D__ANDROID__ -Wno-error -Wno-deprecated-declarations"
     export CXXFLAGS="-D__ANDROID__ -Wno-error -Wno-deprecated-declarations"
 
     meson setup "$build_dir" --cross-file android-cross.txt \
         -Dbuildtype=release \
         -Dplatforms=android \
-        -Dplatform-sdk-version=35 \
+        -Dplatform-sdk-version=29 \
         -Dandroid-stub=true \
+        -Dandroid-libbacktrace=disabled \
         -Dgallium-drivers= \
         -Dvulkan-drivers=freedreno \
         -Dfreedreno-kmds=kgsl \
@@ -84,36 +111,51 @@ EOF
         -Dvulkan-beta=true \
         -Ddefault_library=shared \
         -Dzstd=disabled \
-        -Dwerror=false \
-        --force-fallback-for=spirv-tools,spirv-headers
-    
+        -Db_lto=false \
+        -Dwerror=false
+
     ninja -C "$build_dir"
 
     local lib="$build_dir/src/freedreno/vulkan/libvulkan_freedreno.so"
-    if [ ! -f "$lib" ]; then echo "Build Failed"; exit 1; fi
-    
+    if [ ! -f "$lib" ]; then
+        echo "Build failed: $lib not found"
+        exit 1
+    fi
+
     local pkg_dir="$workdir/pkg_$output_tag"
+    rm -rf "$pkg_dir"
     mkdir -p "$pkg_dir"
+
     cp "$lib" "$pkg_dir/vulkan.ad07XX.so"
     cd "$pkg_dir"
-    patchelf --set-soname "vulkan.adreno.so" vulkan.ad07XX.so
-    
-    echo "{
-  \"schemaVersion\": 1,
-  \"name\": \"$build_name\",
-  \"description\": \"Mesa Main Clean Build (SDK 35)\",
-  \"author\": \"StevenMX\",
-  \"packageVersion\": \"1\",
-  \"vendor\": \"Mesa\",
-  \"driverVersion\": \"$output_tag\",
-  \"minApi\": 28,
-  \"libraryName\": \"vulkan.ad07XX.so\"
-}" > meta.json
-    
+    patchelf --set-soname "vulkan.ad07XX.so" vulkan.ad07XX.so
+
+    cat <<EOF > meta.json
+{
+  "schemaVersion": 1,
+  "name": "$build_name",
+  "description": "Mesa Turnip main build for Adreno 6xx / Poco F1 (Android 10)",
+  "author": "StevenMX",
+  "packageVersion": "1",
+  "vendor": "Mesa",
+  "driverVersion": "$output_tag",
+  "minApi": 28,
+  "libraryName": "vulkan.ad07XX.so"
+}
+EOF
+
     zip -9 "$workdir/Turnip-${output_tag}.zip" vulkan.ad07XX.so meta.json
     echo "Done: Turnip-${output_tag}.zip"
 }
+check_deps(){
+    for dep in ninja patchelf unzip curl pip flex bison zip git perl python3 ccache; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            echo "Missing: $dep"
+            exit 1
+        fi
+    done
 
-check_deps
+    pip install meson mako --break-system-packages >/dev/null 2>&1 || true
+}
 prepare_ndk
 compile_mesa
