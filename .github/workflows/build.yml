@@ -1,38 +1,36 @@
-name: Build Turnip Clean 
+name: Build Turnip for Poco F1
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: write
+  push:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build patchelf unzip flex bison git perl python3-pip glslang-tools
-          pip3 install --break-system-packages meson mako
+          sudo apt-get install -y \
+            ninja-build patchelf unzip curl python3-pip \
+            flex bison zip git perl ccache glslang-tools
 
-      - name: Build
+          pip3 install --user meson mako
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build Turnip
         run: |
-          chmod +x build_turnip.sh
-          ./build_turnip.sh
+          chmod +x build-turnip.sh
+          ./build-turnip.sh
 
-      - name: Upload Artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Turnip-Driver
-          path: turnip_workdir/*.zip
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ github.run_number }}
-          files: turnip_workdir/*.zip
+          name: Turnip-PocoF1-Android10
+          path: |
+            turnip_workdir/Turnip-*.zip
