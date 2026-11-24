@@ -129,9 +129,9 @@ EOF
     cat <<EOF > meta.json
 {
   "schemaVersion": 1,
-  "name": "$build_name",
+  "name": "$Mesa Turnip 26.3.1",
   "description": "Mesa Turnip 26.3.1 for Adreno 6xx / Poco F1 (Android 10)",
-  "author": "StevenMX",
+  "author": "Nell",
   "packageVersion": "1",
   "vendor": "Mesa",
   "driverVersion": "$output_tag",
