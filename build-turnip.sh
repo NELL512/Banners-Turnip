@@ -31,16 +31,16 @@ prepare_ndk(){
 
 compile_mesa(){
     local repo_url="https://gitlab.freedesktop.org/mesa/mesa.git"
-    local branch="main"
-    local build_name="Turnip-Main-PocoF1-Android10"
-    local output_tag="V97-Main-Android10"
+    local branch="mesa-26.3.1"
+    local build_name="Turnip-26.3.1-PocoF1-Android10"
+    local output_tag="V26.3.1-Android10"
 
-    echo "Cloning Mesa Main..."
+    echo "Cloning Mesa $branch..."
 
     cd "$workdir"
     rm -rf mesa
 
-    git clone --depth 100 -b "$branch" "$repo_url" mesa
+    git clone --depth 1 -b "$branch" "$repo_url" mesa
     cd mesa
 
     local build_dir="$workdir/mesa/build"
@@ -84,7 +84,6 @@ EOF
         -Dfreedreno-kmds=kgsl \
         -Degl=disabled \
         -Dglx=disabled \
-        -Dvulkan-beta=true \
         -Ddefault_library=shared \
         -Dzstd=disabled \
         -Db_lto=false \
@@ -106,18 +105,37 @@ EOF
     cp "$lib" "$pkg_dir/vulkan.ad07XX.so"
     cd "$pkg_dir"
 
+    # JANGAN strip file .so.
+    # Section header ELF harus tetap ada supaya loader Android 10 bisa memuatnya.
+
+    patchelf --remove-rpath vulkan.ad07XX.so
     patchelf --set-soname "vulkan.ad07XX.so" vulkan.ad07XX.so
+
+    local readelf="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+
+    echo "=== Versioned libc symbols ==="
+    "$readelf" --dyn-syms --wide vulkan.ad07XX.so | \
+        grep -E 'LIBC_[A-Z0-9]+' || true
+
+    echo "=== Android 10 compatibility symbols ==="
+    for sym in call_once mtx_init mtx_lock mtx_unlock \
+               cnd_init cnd_signal cnd_wait thrd_create thrd_join \
+               qsort_r pthread_getaffinity_np pthread_setaffinity_np; do
+        if "$readelf" --dyn-syms --wide vulkan.ad07XX.so | grep -qw "$sym"; then
+            echo "FOUND: $sym"
+        fi
+    done
 
     cat <<EOF > meta.json
 {
   "schemaVersion": 1,
   "name": "$build_name",
-  "description": "Mesa Turnip main build for Adreno 6xx / Poco F1 (Android 10)",
+  "description": "Mesa Turnip 26.3.1 for Adreno 6xx / Poco F1 (Android 10)",
   "author": "StevenMX",
   "packageVersion": "1",
   "vendor": "Mesa",
   "driverVersion": "$output_tag",
-  "minApi": 28,
+  "minApi": 29,
   "libraryName": "vulkan.ad07XX.so"
 }
 EOF
