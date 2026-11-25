@@ -25,8 +25,8 @@ prepare_ndk(){
 compile_mesa() {
     local repo_url="https://gitlab.freedesktop.org/mesa/mesa.git"
     local branch="main"
-    local build_name="Turnip-Main-Clean-SDK35"
-    local output_tag="V97-Main-SDK35"
+    local build_name="Turnip-NELL512-Clean"
+    local output_tag="V97-NELL512-SDK35"
 
     echo "Cloning Mesa Main..."
     
@@ -53,8 +53,8 @@ compile_mesa() {
 compile_mesa() {
     local repo_url="https://gitlab.freedesktop.org/mesa/mesa.git"
     local branch="main"
-    local build_name="Turnip-Main-PocoF1-Android10"
-    local output_tag="V97-Main-Android10"
+    local build_name="Turnip-NELL512-PocoF1-Android10"
+    local output_tag="V97-NELL512-Android10"
 
     echo "Cloning Mesa Main..."
 
@@ -134,8 +134,8 @@ EOF
 {
   "schemaVersion": 1,
   "name": "$build_name",
-  "description": "Mesa Turnip main build for Adreno 6xx / Poco F1 (Android 10)",
-  "author": "StevenMX",
+  "description": "Mesa Turnip NELL512 build for Adreno 6xx / Poco F1 (Android 10)",
+  "author": "NELL512",
   "packageVersion": "1",
   "vendor": "Mesa",
   "driverVersion": "$output_tag",
