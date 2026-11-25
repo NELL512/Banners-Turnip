@@ -1,4 +1,4 @@
-name: Build Turnip for Poco F1
+name: Build Turnip for Adreno 6xx/7xx
 
 on:
   workflow_dispatch:
